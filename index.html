@@ -1,294 +1,161 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Интеграция CRM и оплаты</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:wght@500;600&family=Inter:wght@400;500;600&display=swap">
 <style>
-:root{--bg:#f4f5f7;--s:#fff;--ink:#1a2130;--mu:#5b6475;--ln:#dde1e8;--ac:#2d5bd0;--code:#eef1f6}
-@media (prefers-color-scheme:dark){:root{--bg:#11151c;--s:#181e28;--ink:#e3e8f0;--mu:#97a1b3;--ln:#2a3342;--ac:#7fa2f5;--code:#1f2735}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;padding:0 max(16px,env(safe-area-inset-left))}
-main{max-width:900px;margin:0 auto;padding:28px 0 60px}
-.top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:8px}
-.btn{display:inline-block;padding:9px 16px;border-radius:8px;background:var(--ac);color:#fff;text-decoration:none;font-weight:600;font-size:14px}
-h1{font-size:clamp(26px,5vw,36px);line-height:1.2;margin:.2em 0 .5em}h2{font-size:22px;margin:1.8em 0 .6em;padding-top:.6em;border-top:1px solid var(--ln)}h3{font-size:18px}
-a{color:var(--ac)}img{max-width:100%;height:auto;background:#fff;border-radius:8px;border:1px solid var(--ln)}
-code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}pre{background:var(--code);padding:14px;border-radius:8px;overflow-x:auto}pre code{padding:0;background:none}
-table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}td,th{border:1px solid var(--ln);padding:6px 9px;text-align:left;vertical-align:top}th{background:var(--code)}
-.tw,main>table{display:block;overflow-x:auto;background:var(--s)}
-</style></head><body><main>
-<div class="top"><span style="color:var(--mu);font-size:14px">Python · описание проекта</span><a class="btn" href="https://github.com/skayman777-svg/crm-payment">Исходный код на GitHub</a></div>
-<h1>Заявка → CRM → оплата → доступ: проект на Python</h1>
-<p>Сервис интеграции для сайта с оплатой. Принимает заявку, создаёт сделку в CRM и счёт в платёжном сервисе,
-принимает подписанные уведомления об оплате (вебхуки), двигает сделку по стадиям, выдаёт доступ, пишет клиенту
-и менеджеру. Сбой любой из внешних систем не теряет заказ: действие ждёт в очереди и выполняется позже.</p>
-<p><strong>Проверено на тестовых сервисах.</strong> CRM, платёжный сервис, почта с Telegram и сайт вымышленные, они
-запускаются на вашем компьютере вместе с проектом (<code>mocks/</code>). Их API условные и не повторяют API
-конкретной CRM или платёжной системы. Проект не запускался с реальными CRM, платёжным сервисом, почтой и
-Telegram. Деньги и письма на стенде не настоящие.</p>
-<p><img alt="Схема обмена" src="docs/sequence.svg" /></p>
-<h2>Быстрый запуск</h2>
-<pre><code class="language-bash">pip install -r requirements.txt
-python run.py
-</code></pre>
-<p>Проверено на Python 3.13 (Flask 3.1, requests 2.34), на других версиях не запускалось.</p>
-<p>Что произойдёт: поднимутся пять локальных серверов (сайт, CRM, платёжный сервис, почта и Telegram, сервис
-интеграции) и пройдут восемь сценариев. Каждый заканчивается проверками, при первой неудачной код выхода 1.
-Прогон занимает около двух секунд, журнал сохраняется в <code>out/run.log</code>.</p>
-<p>Чтобы поработать руками, запустите <code>python run.py --serve</code>: после сценариев стенд остаётся включённым.
-В консоли будут адреса формы заказа и доски сделок CRM. Оформите заказ, нажмите на странице оплаты «Оплатить»
-или «Отклонить платёж» и смотрите, как меняется сделка. Остановка: Ctrl+C.</p>
-<p>Тесты (89 проверок, без внешних библиотек кроме Flask и requests): <code>python -m unittest discover -s tests -t .</code></p>
-<h2>Результат тестового прогона</h2>
-<table>
-<thead>
-<tr>
-<th>Показатель</th>
-<th>Значение</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Заказов / сделок в CRM</td>
-<td>8 / 8</td>
-</tr>
-<tr>
-<td>Дошли до «Доступ выдан»</td>
-<td>6</td>
-</tr>
-<tr>
-<td>Ждёт оплаты / отказ банка, ждёт повтора</td>
-<td>1 / 1</td>
-</tr>
-<tr>
-<td>События провайдера</td>
-<td>оплата принята 6, отказ 2, запоздавший отказ после оплаты пропущен 1, повтор уже учтённой оплаты пропущен 1, сумма не сошлась 1</td>
-</tr>
-<tr>
-<td>Шагов выполнено, в очереди, «мёртвых»</td>
-<td>68, 0, 0</td>
-</tr>
-<tr>
-<td>Сообщений</td>
-<td>23: клиентам 16, менеджеру 7</td>
-</tr>
-<tr>
-<td>Проверок в сценариях</td>
-<td>44</td>
-</tr>
-</tbody>
-</table>
-<h2>Сценарии</h2>
-<table>
-<thead>
-<tr>
-<th>№</th>
-<th>Сценарий</th>
-<th>Что проверяется</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>1</td>
-<td>Обычная оплата</td>
-<td>Заявка, сделка, счёт, оплата, доступ. Сделка доходит до «Доступ выдан», в её истории три записи. Клиент получает два письма, менеджер одно сообщение.</td>
-</tr>
-<tr>
-<td>2</td>
-<td>Двойной клик, чужие данные, подмена цены</td>
-<td>Тот же номер заявки возвращает тот же заказ: второй сделки и второго счёта нет. Тот же номер с другим продуктом получает 409. Цена из тела запроса игнорируется. Пустое имя, неверная почта, неизвестный продукт получают 422.</td>
-</tr>
-<tr>
-<td>3</td>
-<td>Повтор вебхука</td>
-<td>Провайдер дважды присылает обработанное событие. Ответ «duplicate», в CRM и почте ничего не прибавилось.</td>
-</tr>
-<tr>
-<td>4</td>
-<td>Поддельные вебхуки, сумма не сходится</td>
-<td>Без подписи, с чужой подписью, со старой подписью и с подписью от другого тела: отказ 401. Настоящая подпись, но сумма 1 ₽ вместо 3 500 ₽: статус не меняется, в сделку и менеджеру уходит предупреждение.</td>
-</tr>
-<tr>
-<td>5</td>
-<td>Отказ банка, затем успех</td>
-<td>Отказ: стадия «Оплата не прошла» и письмо клиенту со ссылкой для повтора. Повторная оплата по той же ссылке проходит. Запоздавший отказ после оплаты игнорируется, оплаченный заказ не откатывается.</td>
-</tr>
-<tr>
-<td>6</td>
-<td>CRM недоступна в момент оплаты</td>
-<td>Оплата записана, доступ выдан, письмо ушло сразу. Два шага CRM ждут в очереди. После восстановления CRM сверка их выполняет, порядок записей верный, повторных писем нет.</td>
-</tr>
-<tr>
-<td>7</td>
-<td>Перезапуск сервиса</td>
-<td>Шлюз дважды отвечает 502. Провайдер повторяет доставку (502, 502, 200), заказ обработан один раз.</td>
-</tr>
-<tr>
-<td>8</td>
-<td>Вебхук потерялся совсем</td>
-<td>Уведомление не дошло. Сверка спрашивает у провайдера статус счетов, находит оплату и запускает обычную обработку. Запоздавшее уведомление потом распознаётся как уже учтённое.</td>
-</tr>
-</tbody>
-</table>
-<h2>Как это устроено</h2>
-<p><strong>Путь заказа.</strong> Заявка с сайта: заказ записывается в базу, затем четыре шага (сделка в CRM, счёт, стадия
-«Ждёт оплаты», письмо со ссылкой). Вебхук об оплате: проверки, затем пять шагов (доступ, письмо с чеком,
-стадии «Оплачено» и «Доступ выдан», сообщение менеджеру). Полная схема в <code>docs/sequence.svg</code>.</p>
-<p><strong>Статусы заказа.</strong> <code>NEW</code> → <code>AWAITING_PAYMENT</code> → <code>PAYMENT_FAILED</code> или <code>PAID</code> → <code>ACCESS_GRANTED</code>. Статус
-меняется только из ожидаемого предыдущего (проверка и запись одним действием), поэтому параллельные запросы
-не затирают друг друга.</p>
-<p><strong>Защита от дублей на каждом уровне.</strong></p>
-<table>
-<thead>
-<tr>
-<th>Где</th>
-<th>Чем защищено</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Заявка с сайта</td>
-<td><code>lead_id</code> даёт один заказ; тот же <code>lead_id</code> с другими данными получает 409</td>
-</tr>
-<tr>
-<td>Сделка в CRM</td>
-<td><code>external_id</code> равен номеру заказа</td>
-</tr>
-<tr>
-<td>Счёт у провайдера</td>
-<td>заголовок <code>Idempotence-Key</code> равен номеру заказа</td>
-</tr>
-<tr>
-<td>Комментарий в сделке</td>
-<td><code>uid</code> из номера заказа и названия шага</td>
-</tr>
-<tr>
-<td>Вебхук</td>
-<td>идентификатор события хранится в таблице <code>events</code></td>
-</tr>
-<tr>
-<td>Шаги очереди</td>
-<td>уникальная пара «заказ + шаг», выполненный шаг не повторяется</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Подпись вебхука.</strong> Заголовок <code>X-Demo-Signature: t=&lt;unix-время&gt;,v1=&lt;HMAC-SHA256(секрет, "&lt;t&gt;.&lt;тело запроса&gt;")&gt;</code>.
-Подпись проверяется по сырому телу до разбора JSON, сравнение за постоянное время, допустимое расхождение
-времени 300 секунд (защита от повторной отправки перехваченного запроса). Причину отказа провайдеру не
-сообщаем, она только в журнале.</p>
-<p><strong>Очередь шагов.</strong> Каждое действие во внешней системе записано как шаг в таблице <code>steps</code> до вызова и
-помечается выполненным после. Запрос к внешней системе делается до трёх раз с удваивающейся паузой, если
-она ответила 429, 500, 502, 503, 504 или не отвечает; остальные ответы 4xx не повторяются. Если система лежит,
-её остальные шаги в этом запуске пропускаются, а шаги других систем выполняются: клиент получает доступ, даже
-если CRM недоступна. Шаги CRM одного заказа идут строго по порядку: пока стадия «Оплачено» не записана, «Доступ
-выдан» её не обгонит.</p>
-<p>Шаг, который не удался 8 раз, считается «мёртвым»: в журнале запись об ошибке, а у сверки, в запуске которой это
-случилось, код выхода 1 (удобно привязать к уведомлению планировщика). Мёртвый шаг сам больше не запускается и
-виден в таблице <code>steps</code> (<code>status = 'dead'</code>), а следующие шаги CRM этого заказа ждут его. Когда причина устранена,
-шаги возвращают в очередь вручную: <code>UPDATE steps SET status = 'pending', attempts = 0 WHERE status = 'dead'</code>.
-Отдельной команды для этого нет.</p>
-<p><strong>Сверка</strong> (<code>python -m integration reconcile</code>, запускать по расписанию). Спрашивает у провайдера статус счетов,
-по которым долго нет оплаты (вдруг вебхук потерялся), и повторяет отложенные шаги.</p>
-<p><strong>Ответы сервиса.</strong> <code>POST /leads</code>: 201 или 200 со ссылкой на оплату, 202 если счёт ещё не выставлен (ссылку
-пришлём на почту), 400, 401, 409, 413, 422. <code>POST /webhooks/pay</code>: 200 (принято, повтор или пропущено), 400, 401, 413
-и 503 с <code>Retry-After</code>, если счёт по заказу ещё не записан. Тело запроса больше 64 КБ отклоняется сразу.
-<code>GET /health</code>: только <code>{"status": "ok"}</code>.</p>
-<h2>Как подключить свои системы</h2>
-<ol>
-<li><strong>Запросы к CRM, платёжному сервису и почте</strong> правятся в <code>integration/clients.py</code>. Методы должны вернуть то,
-   что ждёт <code>service.py</code>:</li>
-</ol>
-<table>
-<thead>
-<tr>
-<th>Метод</th>
-<th>Что возвращает</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>CRM.create_deal</code></td>
-<td><code>{"id": ...}</code>, повтор с тем же <code>external_id</code> возвращает ту же сделку</td>
-</tr>
-<tr>
-<td><code>CRM.get_deal</code></td>
-<td><code>{"stage": ...}</code></td>
-</tr>
-<tr>
-<td><code>CRM.set_stage</code></td>
-<td>любой ответ 2xx; при недопустимом переходе ответ 409</td>
-</tr>
-<tr>
-<td><code>CRM.comment</code></td>
-<td>любой ответ 2xx; <code>uid</code> защищает от повторной записи</td>
-</tr>
-<tr>
-<td><code>Pay.create_invoice</code></td>
-<td><code>{"id": ..., "pay_url": ...}</code></td>
-</tr>
-<tr>
-<td><code>Pay.get_invoice</code></td>
-<td><code>{"id", "status", "amount_kop", "currency", "payment": {"id", "receipt": {"number"}}}</code></td>
-</tr>
-<tr>
-<td><code>Notifier.send</code></td>
-<td>любой ответ 2xx</td>
-</tr>
-</tbody>
-</table>
-<p>Названия стадий (<code>NEW</code>, <code>AWAITING_PAYMENT</code>, <code>PAYMENT_FAILED</code>, <code>PAID</code>, <code>ACCESS_GRANTED</code>) сопоставляются со
-   стадиями вашей воронки внутри <code>CRM.set_stage</code> и <code>CRM.get_deal</code>.
-2. <strong>Формат вебхука и подпись</strong> у каждого провайдера свои. Подпись в <code>integration/signature.py</code>, разбор события
-   в <code>Service.handle_webhook</code>, правила по статусам в <code>Service._decide</code>. Если провайдер события не подписывает,
-   доверять событию можно только после запроса статуса платежа в его API: метод <code>Pay.get_invoice</code> для этого
-   уже есть (его использует сверка).
-3. <strong>Порядок действий</strong> задан списками <code>LEAD_PLAN</code> и <code>PAID_PLAN</code> в <code>integration/service.py</code>. Новый шаг это
-   функция <code>_s_...</code> и строка в плане. Шаг должен быть безопасным для повтора.
-4. <strong>Каталог и цены</strong> в <code>CATALOG</code> в <code>integration/config.py</code>. В работе его заменяют выгрузкой из вашей базы или CRM.
-5. <strong>Настройки</strong> только из переменных окружения: <code>CRM_URL</code>, <code>CRM_TOKEN</code>, <code>PAY_URL</code>, <code>PAY_KEY</code>,
-   <code>WEBHOOK_SECRET</code>, <code>MSG_URL</code>, <code>LEAD_TOKEN</code>, <code>ACCESS_SECRET</code>. Необязательные: <code>DB_PATH</code> (по умолчанию
-   <code>integration.db</code>), <code>MANAGER_CHAT</code>, <code>ACCESS_BASE</code>. Без обязательных переменных сервис не стартует.
-6. <strong>Запуск:</strong> <code>python -m integration serve --host 127.0.0.1 --port 8080</code> и по расписанию (например, cron раз в
-   5–10 минут) <code>python -m integration reconcile</code>.
-7. <strong>Сайт</strong> отправляет заявку на сервер вашего сайта, а тот обращается к сервису с заголовком
-   <code>Authorization: Bearer &lt;LEAD_TOKEN&gt;</code>. Токен нельзя класть в код страницы. Пример серверного обработчика
-   формы: <code>mocks/site.py</code>.</p>
-<h2>Ограничения</h2>
-<ul>
-<li>Проект проверен только на тестовых сервисах. Каждая реальная CRM и каждый платёжный сервис требуют своего
-  адаптера и проверки: формат запросов, стадии воронки, правила вебхуков, лимиты и тестовый режим.</li>
-<li>Формат вебхука, заголовок подписи и события условные. У реального провайдера они другие.</li>
-<li>Чек на стенде условный и нефискальный (<code>DEMO-000001</code>). Фискализация по 54-ФЗ настраивается на стороне платёжного
-  сервиса или онлайн-кассы, в проекте её нет.</li>
-<li>Шаги выполняются внутри обработчика вебхука. Если CRM отвечает медленно, провайдер может не дождаться
-  ответа и повторит доставку (это безопасно, но неудобно). В работе событие сохраняют, сразу отвечают 200, а
-  шаги выполняет фоновый обработчик.</li>
-<li>SQLite и встроенный сервер Flask подходят для проверки. В работе нужны PostgreSQL, waitress или gunicorn за
-  HTTPS-прокси и блокировка шагов на уровне базы (при нескольких процессах). Блокировки в коде защищают один
-  процесс.</li>
-<li>Письма и сообщения доставляются «минимум один раз»: если процесс упадёт между отправкой и записью шага, письмо
-  может уйти второй раз.</li>
-<li>Выдача доступа это заглушка: ссылка считается из номера заказа и секрета. Подключение к вашей платформе
-  (курсы, чат, облако) отдельный шаг.</li>
-<li>Реальные почта и Telegram не подключались: письма и сообщения уходят в учебный почтовый сервис.</li>
-<li>Не реализованы: возвраты, подписки и регулярные платежи, заказы из нескольких позиций, промокоды, интерфейс
-  администратора.</li>
-<li>Сам сервис (строки с тегом <code>svc</code>) пишет в журнал номера заказов и заявок, но не имена и адреса почты. В
-  тестовом журнале имена видны, потому что их пишут «рассказчик» сценариев и тестовая почта. Тексты ошибок
-  внешних систем попадают в журнал обрезанными до 120 символов: у реальных систем их стоит проверить на
-  персональные данные.</li>
-</ul>
-<h2>Структура</h2>
-<pre><code>run.py              сквозной тестовый прогон: 8 сценариев, 44 проверки, журнал в out/run.log
-stand.py             сборка тестового стенда (для run.py и тестов)
-integration/         сервис интеграции
-  config.py            настройки и каталог продуктов
-  signature.py         подпись вебхуков
-  http.py              запросы к внешним системам с повторами
-  clients.py           обёртки над CRM, платёжным сервисом, почтой
-  store.py             SQLite: заказы, события, очередь шагов
-  service.py           вся логика: заявка, вебхук, шаги, сверка
-  web.py               три адреса: /leads, /webhooks/pay, /health
-  __main__.py          python -m integration serve | reconcile
-mocks/               тестовые CRM, платёжный сервис, почта и Telegram, сайт
-docs/                схема обмена (sequence.svg, sequence.png) и скрипт make_diagram.py, который её строит
-tests/               unittest: 89 проверок (подпись, запросы, хранилище, учебные сервисы, сценарии, запуск)
-</code></pre>
-<p style="margin-top:2em"><a class="btn" href="https://github.com/skayman777-svg/crm-payment">Исходный код на GitHub</a></p>
-</main></body></html>
+/* Layout: шапка, выбор сценария, полоса систем, лента событий + проверки и стадии сделки */
+:root{
+  --bg:#f3f2f8; --surface:#ffffff; --ink:#221d33; --muted:#625b78; --line:#dcd8e8; --soft:#ece8f6;
+  --accent:#6b44c9; --accent-soft:#e8e0fa; --ok:#1e7a4f; --ok-soft:#ddf1e6; --warn:#a85d10; --warn-soft:#f8e8d4; --bad:#b23a2f;
+  --f-d:"Lora",Georgia,serif; --f-b:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif; --f-m:ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#13111b; --surface:#1b1826; --ink:#e6e2f2; --muted:#a29bbb; --line:#2f2a42; --soft:#241f33;
+  --accent:#b39af5; --accent-soft:#2e2547; --ok:#5cc18d; --ok-soft:#173528; --warn:#e9a061; --warn-soft:#3a2a17; --bad:#ef7d6f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#13111b; --surface:#1b1826; --ink:#e6e2f2; --muted:#a29bbb; --line:#2f2a42; --soft:#241f33;
+  --accent:#b39af5; --accent-soft:#2e2547; --ok:#5cc18d; --ok-soft:#173528; --warn:#e9a061; --warn-soft:#3a2a17; --bad:#ef7d6f; color-scheme:dark}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 var(--f-b);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1140px;margin:0 auto;padding-block:30px 56px;display:grid;gap:26px;grid-template-columns:minmax(0,1fr)}
+h1,h2{font-family:var(--f-d);font-weight:600;margin:0;text-wrap:balance}
+h1{font-size:clamp(27px,4.2vw,40px);line-height:1.15}h2{font-size:18px}
+p{margin:0;max-width:72ch}
+header{display:grid;gap:12px}
+.eyebrow{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:flex;gap:12px;flex-wrap:wrap;justify-content:space-between;align-items:center}
+.lead{color:var(--muted);font-size:16px}
+.eyebrow .btn{text-transform:none;letter-spacing:0;font-size:13px}
+.btn{display:inline-block;font:inherit;font-size:14px;font-weight:500;padding:8px 14px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:var(--surface);cursor:pointer;text-decoration:none}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn:focus-visible,.sc:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.scs{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+.sc{flex:0 0 auto;max-width:250px;text-align:left;font:inherit;font-size:13px;line-height:1.35;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.sc b{display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:2px}
+.sc[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.lanes{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+@media (max-width:700px){.lanes{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.lane{background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:2px;transition:border-color .2s,background .2s}
+.lane span{font-size:11px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase}
+.lane strong{font-size:14px;font-weight:600}
+.lane small{font-size:12px;color:var(--muted);min-height:2.6em;overflow-wrap:anywhere}
+.lane.on{border-color:var(--accent);background:var(--accent-soft)}
+.lane.on.w{border-color:var(--warn);background:var(--warn-soft)}
+.grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;display:grid;grid-template-columns:minmax(0,1fr);min-width:0}
+.ph{padding:10px 14px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.ph h2{font-family:var(--f-b);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.ctr{display:flex;gap:6px;flex-wrap:wrap}
+.ctr .btn{font-size:13px;padding:6px 11px}
+.feed{list-style:none;margin:0;padding:8px 0;max-height:560px;overflow-y:auto}
+.feed li{display:grid;grid-template-columns:92px minmax(0,1fr);gap:10px;padding:6px 14px;font-size:13.5px;border-left:3px solid transparent}
+.feed li.cur{background:var(--soft);border-left-color:var(--accent)}
+.feed li.warn .m{color:var(--warn)} .feed li.err .m{color:var(--bad)}
+.tag{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:5px;background:var(--soft);color:var(--muted);align-self:start;text-align:center}
+.tag.svc{background:var(--accent-soft);color:var(--accent)} .tag.chk{background:var(--ok-soft);color:var(--ok)}
+.m{overflow-wrap:anywhere}
+.feed li.chk .m{color:var(--ok);font-weight:500}
+.side{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
+.stages{display:flex;flex-wrap:wrap;gap:6px;padding:12px 14px}
+.st{font-size:12.5px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.st.done{background:var(--ok-soft);border-color:var(--ok);color:var(--ink)}
+.st.fail{background:var(--warn-soft);border-color:var(--warn);color:var(--ink)}
+.checks{list-style:none;margin:0;padding:10px 14px;display:grid;gap:7px;font-size:13.5px}
+.checks li{display:grid;grid-template-columns:18px minmax(0,1fr);gap:6px}
+.checks li::before{content:"✓";color:var(--ok);font-weight:700}
+.checks .empty{color:var(--muted);display:block}.checks .empty::before{content:none}
+.count{font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted)}
+.limits{margin:0;padding-left:20px;display:grid;gap:6px;max-width:78ch}
+.note{font-size:13px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="eyebrow"><span>Python · интеграция CRM и платёжного сервиса</span><a class="btn ghost" href="https://github.com/skayman777-svg/crm-payment">Исходный код на GitHub</a></div>
+  <h1>Заявка → CRM → оплата → доступ</h1>
+  <p class="lead">Сервис принимает заявку с сайта, создаёт сделку в CRM и счёт в платёжном сервисе, принимает подписанные уведомления об оплате, двигает сделку по стадиям, выдаёт доступ и пишет клиенту и менеджеру. Ниже реальный журнал тестового прогона: 8 сценариев, 44 проверки.</p>
+</header>
+
+<section style="display:grid;gap:12px;grid-template-columns:minmax(0,1fr)">
+  <h2>Выберите сценарий</h2>
+  <div class="scs" id="scs"></div>
+</section>
+
+<div class="lanes" id="lanes"></div>
+
+<div class="grid">
+  <div class="panel">
+    <div class="ph"><h2 id="sct">Журнал</h2><div class="ctr">
+      <button class="btn" id="play" type="button">▶ Проиграть</button>
+      <button class="btn ghost" id="step" type="button">Шаг</button>
+      <button class="btn ghost" id="all" type="button">Показать всё</button>
+    </div></div>
+    <ol class="feed" id="feed"></ol>
+  </div>
+  <div class="side">
+    <div class="panel"><div class="ph"><h2>Стадии сделки в CRM</h2></div><div class="stages" id="stages"></div></div>
+    <div class="panel"><div class="ph"><h2>Проверки сценария</h2><span class="count" id="cnt"></span></div><ul class="checks" id="checks"></ul></div>
+  </div>
+</div>
+
+<section style="display:grid;gap:10px">
+  <h2>Что учесть</h2>
+  <ul class="limits">
+    <li>Журнал взят из тестового прогона на локальном стенде: CRM, платёжный сервис, почта и сайт там тестовые, деньги и письма не настоящие.</li>
+    <li>Под каждую реальную CRM и платёжную систему пишется свой адаптер: формат запросов, стадии воронки, правила вебхуков.</li>
+    <li>Фискализация чеков по 54-ФЗ настраивается на стороне платёжного сервиса или онлайн-кассы.</li>
+  </ul>
+</section>
+</div>
+
+<script type="application/json" id="data">[{"n": 1, "title": "Обычная оплата: заявка → сделка → счёт → оплата → доступ", "steps": [{"t": "08:47:13", "lvl": "INFO", "src": "site", "msg": "клиент Анна Ковалёва заполняет форму: «Мини-курс «Excel для учёта»» (заявка lead-1001)"}, {"t": "08:47:13", "lvl": "INFO", "src": "svc", "msg": "заявка lead-1001 принята: заказ ORD-0001, Мини-курс «Excel для учёта», 5 900 ₽ (цена из каталога)"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals external_id=ORD-0001 → 201: создана сделка #101"}, {"t": "08:47:13", "lvl": "INFO", "src": "pay", "msg": "POST /v1/invoices key=ORD-0001 → 201: счёт inv_0001 на 5 900 ₽"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "PATCH /api/deals/101 → 200: стадия NEW → AWAITING_PAYMENT"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals/101/comments → 201: «Выставлен счёт inv_0001 на 5 900 ₽.»"}, {"t": "08:47:13", "lvl": "INFO", "src": "msg", "msg": "email → anna@example.com: «Заказ ORD-0001: ссылка на оплату»"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ сайт получил ссылку на оплату (HTTP 201)"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ заказ ждёт оплаты, в CRM одна сделка"}, {"t": "08:47:13", "lvl": "INFO", "src": "site", "msg": "клиент открывает страницу оплаты и нажимает «Оплатить»"}, {"t": "08:47:13", "lvl": "INFO", "src": "pay", "msg": "платёж pay_0001 по счёту inv_0001 прошёл"}, {"t": "08:47:13", "lvl": "INFO", "src": "svc", "msg": "вебхук evt_0001 payment.succeeded: подпись верна, заказ ORD-0001 оплачен (5 900 ₽) → PAID"}, {"t": "08:47:13", "lvl": "INFO", "src": "msg", "msg": "email → anna@example.com: «Заказ ORD-0001: оплата получена»"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "PATCH /api/deals/101 → 200: стадия AWAITING_PAYMENT → PAID"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals/101/comments → 201: «Оплата получена: 5 900 ₽, платёж pay_0001, чек № R-000001.»"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "PATCH /api/deals/101 → 200: стадия PAID → ACCESS_GRANTED"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals/101/comments → 201: «Доступ открыт.»"}, {"t": "08:47:13", "lvl": "INFO", "src": "msg", "msg": "telegram → @manager: «Оплачен заказ ORD-0001»"}, {"t": "08:47:13", "lvl": "INFO", "src": "pay", "msg": "вебхук evt_0001 доставлен с попытки 1 (HTTP 200)"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ вебхук принят с первой попытки, заказ оплачен"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ сделка в CRM дошла до стадии «Доступ выдан»"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ история сделки: счёт выставлен, оплата получена, доступ открыт"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ клиент получил 2 письма (ссылка, подтверждение с доступом), менеджер 1 сообщение"}]}, {"n": 2, "title": "Двойной клик, чужие данные под тем же номером и подмена цены", "steps": [{"t": "08:47:13", "lvl": "INFO", "src": "site", "msg": "клиент Борис Лебедев дважды нажимает «Оформить заказ» (в обоих запросах один lead-1002)"}, {"t": "08:47:13", "lvl": "INFO", "src": "svc", "msg": "заявка lead-1002 принята: заказ ORD-0002, Консультация 60 минут, 3 500 ₽ (цена из каталога)"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals external_id=ORD-0002 → 201: создана сделка #102"}, {"t": "08:47:13", "lvl": "INFO", "src": "pay", "msg": "POST /v1/invoices key=ORD-0002 → 201: счёт inv_0002 на 3 500 ₽"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "PATCH /api/deals/102 → 200: стадия NEW → AWAITING_PAYMENT"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals/102/comments → 201: «Выставлен счёт inv_0002 на 3 500 ₽.»"}, {"t": "08:47:13", "lvl": "INFO", "src": "msg", "msg": "email → boris@example.com: «Заказ ORD-0002: ссылка на оплату»"}, {"t": "08:47:13", "lvl": "INFO", "src": "svc", "msg": "заявка lead-1002 уже принята (заказ ORD-0002), дубль не создан"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ второй запрос получил тот же заказ (HTTP 200), дубль не создан"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ ссылка на оплату одна и та же"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ в CRM одна новая сделка, у провайдера один новый счёт"}, {"t": "08:47:13", "lvl": "WARNING", "src": "svc", "msg": "заявка lead-1002 (409): идентификатор уже использован с другими данными, заказ ORD-0002 не тронут"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ тот же номер заявки с другим продуктом отклонён (HTTP 409)"}, {"t": "08:47:13", "lvl": "INFO", "src": "sim", "msg": "скрипт отправляет заявку lead-1003 с ценой 1 ₽ в теле запроса (amount_kop=100)"}, {"t": "08:47:13", "lvl": "WARNING", "src": "svc", "msg": "заявка lead-1003: сумма из формы проигнорирована, цену задаёт каталог на сервере"}, {"t": "08:47:13", "lvl": "INFO", "src": "svc", "msg": "заявка lead-1003 принята: заказ ORD-0003, Консультация 60 минут, 3 500 ₽ (цена из каталога)"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals external_id=ORD-0003 → 201: создана сделка #103"}, {"t": "08:47:13", "lvl": "INFO", "src": "pay", "msg": "POST /v1/invoices key=ORD-0003 → 201: счёт inv_0003 на 3 500 ₽"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "PATCH /api/deals/103 → 200: стадия NEW → AWAITING_PAYMENT"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals/103/comments → 201: «Выставлен счёт inv_0003 на 3 500 ₽.»"}, {"t": "08:47:13", "lvl": "INFO", "src": "msg", "msg": "email → vera@example.com: «Заказ ORD-0003: ссылка на оплату»"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ сумма взята из каталога на сервере (3 500 ₽), цена из формы проигнорирована"}, {"t": "08:47:13", "lvl": "WARNING", "src": "svc", "msg": "заявка отклонена (422): name: укажите имя (до 100 символов); email: неверный адрес почты; product: неизвестный продукт"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ пустое имя, неверная почта и неизвестный продукт отклонены (HTTP 422)"}]}, {"n": 3, "title": "Провайдер повторно присылает уже обработанный вебхук", "steps": [{"t": "08:47:13", "lvl": "INFO", "src": "site", "msg": "клиент Борис оплачивает заказ"}, {"t": "08:47:13", "lvl": "INFO", "src": "pay", "msg": "платёж pay_0002 по счёту inv_0002 прошёл"}, {"t": "08:47:13", "lvl": "INFO", "src": "svc", "msg": "вебхук evt_0002 payment.succeeded: подпись верна, заказ ORD-0002 оплачен (3 500 ₽) → PAID"}, {"t": "08:47:13", "lvl": "INFO", "src": "msg", "msg": "email → boris@example.com: «Заказ ORD-0002: оплата получена»"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "PATCH /api/deals/102 → 200: стадия AWAITING_PAYMENT → PAID"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals/102/comments → 201: «Оплата получена: 3 500 ₽, платёж pay_0002, чек № R-000002.»"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "PATCH /api/deals/102 → 200: стадия PAID → ACCESS_GRANTED"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals/102/comments → 201: «Доступ открыт.»"}, {"t": "08:47:13", "lvl": "INFO", "src": "msg", "msg": "telegram → @manager: «Оплачен заказ ORD-0002»"}, {"t": "08:47:13", "lvl": "INFO", "src": "pay", "msg": "вебхук evt_0002 доставлен с попытки 1 (HTTP 200)"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ первая доставка обработана: сделка в стадии «Доступ выдан»"}, {"t": "08:47:13", "lvl": "INFO", "src": "svc", "msg": "вебхук evt_0002 payment.succeeded: уже обработан, повтор ничего не меняет"}, {"t": "08:47:13", "lvl": "INFO", "src": "pay", "msg": "вебхук evt_0002 доставлен с попытки 1 (HTTP 200)"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ повторная доставка №1: сервис ответил 200 «duplicate»"}, {"t": "08:47:13", "lvl": "INFO", "src": "svc", "msg": "вебхук evt_0002 payment.succeeded: уже обработан, повтор ничего не меняет"}, {"t": "08:47:13", "lvl": "INFO", "src": "pay", "msg": "вебхук evt_0002 доставлен с попытки 1 (HTTP 200)"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ повторная доставка №2: сервис ответил 200 «duplicate»"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ комментариев в CRM и писем не прибавилось"}]}, {"n": 4, "title": "Поддельные вебхуки и сумма, которая не сходится с заказом", "steps": [{"t": "08:47:13", "lvl": "INFO", "src": "sim", "msg": "злоумышленник пытается «оплатить» чужой заказ вебхуком без подписи, с чужой подписью, со старой подписью и с изменённым телом"}, {"t": "08:47:13", "lvl": "WARNING", "src": "svc", "msg": "вебхук отклонён (401): заголовок подписи отсутствует"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ без подписи: отказ (HTTP 401)"}, {"t": "08:47:13", "lvl": "WARNING", "src": "svc", "msg": "вебхук отклонён (401): подпись не совпала"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ подпись чужим секретом: отказ (HTTP 401)"}, {"t": "08:47:13", "lvl": "WARNING", "src": "svc", "msg": "вебхук отклонён (401): метка времени старше 300 с: возможна повторная отправка перехваченного запроса"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ старая подпись (час назад): отказ (HTTP 401)"}, {"t": "08:47:13", "lvl": "WARNING", "src": "svc", "msg": "вебхук отклонён (401): подпись не совпала"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ подпись от другого тела: отказ (HTTP 401)"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ заказ остался неоплаченным, подделки в журнал событий не попали"}, {"t": "08:47:13", "lvl": "INFO", "src": "sim", "msg": "провайдер присылает настоящую подпись, но сумма 1 ₽ вместо 3 500 ₽ (ошибка на стороне провайдера или атака)"}, {"t": "08:47:13", "lvl": "INFO", "src": "svc", "msg": "вебхук evt_9001 payment.succeeded: подпись верна, сумма 1 ₽ не совпала с заказом (3 500 ₽), статус ORD-0003 не изменён, менеджеру отправлено предупреждение"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals/103/comments → 201: «⚠ Заказ ORD-0003: в уведомлении об оплате сумма 1 ₽, а в заказе 3 500 ₽. Статус не…»"}, {"t": "08:47:13", "lvl": "INFO", "src": "msg", "msg": "telegram → @manager: «⚠ Заказ ORD-0003: в уведомлении об оплате сумма 1 ₽, а в заказе 3 500 ₽. Статус не…»"}, {"t": "08:47:13", "lvl": "INFO", "src": "pay", "msg": "вебхук evt_9001 доставлен с попытки 1 (HTTP 200)"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ сумма не сошлась: статус заказа не изменён, доступ не выдан"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ в сделку записано предупреждение, менеджеру ушло сообщение"}]}, {"n": 5, "title": "Платёж отклонён, клиент повторяет и платит", "steps": [{"t": "08:47:13", "lvl": "INFO", "src": "site", "msg": "клиентка Галина Орлова оформляет «Консультацию 60 минут» (lead-1005)"}, {"t": "08:47:13", "lvl": "INFO", "src": "svc", "msg": "заявка lead-1005 принята: заказ ORD-0004, Консультация 60 минут, 3 500 ₽ (цена из каталога)"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals external_id=ORD-0004 → 201: создана сделка #104"}, {"t": "08:47:13", "lvl": "INFO", "src": "pay", "msg": "POST /v1/invoices key=ORD-0004 → 201: счёт inv_0004 на 3 500 ₽"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "PATCH /api/deals/104 → 200: стадия NEW → AWAITING_PAYMENT"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals/104/comments → 201: «Выставлен счёт inv_0004 на 3 500 ₽.»"}, {"t": "08:47:13", "lvl": "INFO", "src": "msg", "msg": "email → galina@example.com: «Заказ ORD-0004: ссылка на оплату»"}, {"t": "08:47:13", "lvl": "INFO", "src": "site", "msg": "на странице оплаты банк отклоняет платёж"}, {"t": "08:47:13", "lvl": "INFO", "src": "pay", "msg": "платёж pay_0003 по счёту inv_0004 отклонён (insufficient_funds)"}, {"t": "08:47:13", "lvl": "INFO", "src": "svc", "msg": "вебхук evt_0003 payment.failed: подпись верна, платёж отклонён (недостаточно средств), заказ ORD-0004 → PAYMENT_FAILED"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "PATCH /api/deals/104 → 200: стадия AWAITING_PAYMENT → PAYMENT_FAILED"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals/104/comments → 201: «Платёж отклонён: недостаточно средств.»"}, {"t": "08:47:13", "lvl": "INFO", "src": "msg", "msg": "email → galina@example.com: «Заказ ORD-0004: платёж не прошёл»"}, {"t": "08:47:13", "lvl": "INFO", "src": "pay", "msg": "вебхук evt_0003 доставлен с попытки 1 (HTTP 200)"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ заказ и сделка в статусе «Оплата не прошла»"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ клиентка получила письмо со ссылкой для повторной попытки"}, {"t": "08:47:13", "lvl": "INFO", "src": "site", "msg": "Галина повторяет оплату по той же ссылке"}, {"t": "08:47:13", "lvl": "INFO", "src": "pay", "msg": "платёж pay_0004 по счёту inv_0004 прошёл"}, {"t": "08:47:13", "lvl": "INFO", "src": "svc", "msg": "вебхук evt_0004 payment.succeeded: подпись верна, заказ ORD-0004 оплачен (3 500 ₽) → PAID"}, {"t": "08:47:13", "lvl": "INFO", "src": "msg", "msg": "email → galina@example.com: «Заказ ORD-0004: оплата получена»"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "PATCH /api/deals/104 → 200: стадия PAYMENT_FAILED → PAID"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals/104/comments → 201: «Оплата получена: 3 500 ₽, платёж pay_0004, чек № R-000004.»"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "PATCH /api/deals/104 → 200: стадия PAID → ACCESS_GRANTED"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals/104/comments → 201: «Доступ открыт.»"}, {"t": "08:47:13", "lvl": "INFO", "src": "msg", "msg": "telegram → @manager: «Оплачен заказ ORD-0004»"}, {"t": "08:47:13", "lvl": "INFO", "src": "pay", "msg": "вебхук evt_0004 доставлен с попытки 1 (HTTP 200)"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ после успешной оплаты сделка дошла до «Доступ выдан»"}, {"t": "08:47:13", "lvl": "INFO", "src": "sim", "msg": "через минуту до сервиса доходит запоздавшее уведомление о первом отказе (новый номер события)"}, {"t": "08:47:13", "lvl": "INFO", "src": "svc", "msg": "вебхук evt_late payment.failed: подпись верна, заказ ORD-0004 уже оплачен, запоздавшее «платёж не прошёл» пропущено"}, {"t": "08:47:13", "lvl": "INFO", "src": "pay", "msg": "вебхук evt_late доставлен с попытки 1 (HTTP 200)"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ запоздавший отказ проигнорирован"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ оплаченный заказ не откатился назад"}, {"t": "08:47:13", "lvl": "INFO", "src": "site", "msg": "клиент Игорь Смирнов (lead-1006) получил отказ банка и пока не повторил оплату"}, {"t": "08:47:13", "lvl": "INFO", "src": "svc", "msg": "заявка lead-1006 принята: заказ ORD-0005, Мини-курс «Excel для учёта», 5 900 ₽ (цена из каталога)"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals external_id=ORD-0005 → 201: создана сделка #105"}, {"t": "08:47:13", "lvl": "INFO", "src": "pay", "msg": "POST /v1/invoices key=ORD-0005 → 201: счёт inv_0005 на 5 900 ₽"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "PATCH /api/deals/105 → 200: стадия NEW → AWAITING_PAYMENT"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals/105/comments → 201: «Выставлен счёт inv_0005 на 5 900 ₽.»"}, {"t": "08:47:13", "lvl": "INFO", "src": "msg", "msg": "email → igor@example.com: «Заказ ORD-0005: ссылка на оплату»"}, {"t": "08:47:13", "lvl": "INFO", "src": "pay", "msg": "платёж pay_0005 по счёту inv_0005 отклонён (insufficient_funds)"}, {"t": "08:47:13", "lvl": "INFO", "src": "svc", "msg": "вебхук evt_0005 payment.failed: подпись верна, платёж отклонён (недостаточно средств), заказ ORD-0005 → PAYMENT_FAILED"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "PATCH /api/deals/105 → 200: стадия AWAITING_PAYMENT → PAYMENT_FAILED"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals/105/comments → 201: «Платёж отклонён: недостаточно средств.»"}, {"t": "08:47:13", "lvl": "INFO", "src": "msg", "msg": "email → igor@example.com: «Заказ ORD-0005: платёж не прошёл»"}, {"t": "08:47:13", "lvl": "INFO", "src": "pay", "msg": "вебхук evt_0005 доставлен с попытки 1 (HTTP 200)"}, {"t": "08:47:13", "lvl": "INFO", "src": "demo", "msg": "✓ заказ Игоря ждёт повторной попытки"}]}, {"n": 6, "title": "CRM недоступна в момент оплаты", "steps": [{"t": "08:47:13", "lvl": "INFO", "src": "site", "msg": "клиент Денис Громов оформляет «Мини-курс «Excel для учёта»» (lead-1007)"}, {"t": "08:47:13", "lvl": "INFO", "src": "svc", "msg": "заявка lead-1007 принята: заказ ORD-0006, Мини-курс «Excel для учёта», 5 900 ₽ (цена из каталога)"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals external_id=ORD-0006 → 201: создана сделка #106"}, {"t": "08:47:13", "lvl": "INFO", "src": "pay", "msg": "POST /v1/invoices key=ORD-0006 → 201: счёт inv_0006 на 5 900 ₽"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "PATCH /api/deals/106 → 200: стадия NEW → AWAITING_PAYMENT"}, {"t": "08:47:13", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals/106/comments → 201: «Выставлен счёт inv_0006 на 5 900 ₽.»"}, {"t": "08:47:13", "lvl": "INFO", "src": "msg", "msg": "email → denis@example.com: «Заказ ORD-0006: ссылка на оплату»"}, {"t": "08:47:13", "lvl": "INFO", "src": "sim", "msg": "CRM перестаёт отвечать (ошибка 503)"}, {"t": "08:47:13", "lvl": "INFO", "src": "site", "msg": "Денис оплачивает заказ"}, {"t": "08:47:13", "lvl": "INFO", "src": "pay", "msg": "платёж pay_0006 по счёту inv_0006 прошёл"}, {"t": "08:47:13", "lvl": "INFO", "src": "svc", "msg": "вебхук evt_0006 payment.succeeded: подпись верна, заказ ORD-0006 оплачен (5 900 ₽) → PAID"}, {"t": "08:47:13", "lvl": "INFO", "src": "msg", "msg": "email → denis@example.com: «Заказ ORD-0006: оплата получена»"}, {"t": "08:47:13", "lvl": "WARNING", "src": "crm", "msg": "PATCH /api/deals/106 → 503 (имитация сбоя)"}, {"t": "08:47:13", "lvl": "WARNING", "src": "svc", "msg": "CRM: PATCH /api/deals/106 — ответ 503, повтор 1 из 2 через 0.2 с"}, {"t": "08:47:13", "lvl": "WARNING", "src": "crm", "msg": "PATCH /api/deals/106 → 503 (имитация сбоя)"}, {"t": "08:47:13", "lvl": "WARNING", "src": "svc", "msg": "CRM: PATCH /api/deals/106 — ответ 503, повтор 2 из 2 через 0.4 с"}, {"t": "08:47:14", "lvl": "WARNING", "src": "crm", "msg": "PATCH /api/deals/106 → 503 (имитация сбоя)"}, {"t": "08:47:14", "lvl": "WARNING", "src": "svc", "msg": "заказ ORD-0006: шаг crm_paid отложен: CRM недоступна: PATCH /api/deals/106, ответ 503, попыток: 3"}, {"t": "08:47:14", "lvl": "INFO", "src": "msg", "msg": "telegram → @manager: «Оплачен заказ ORD-0006»"}, {"t": "08:47:14", "lvl": "WARNING", "src": "svc", "msg": "заказ ORD-0006: ждут повторного запуска шагов: 2 (их дожмёт сверка)"}, {"t": "08:47:14", "lvl": "INFO", "src": "pay", "msg": "вебхук evt_0006 доставлен с попытки 1 (HTTP 200)"}, {"t": "08:47:14", "lvl": "INFO", "src": "demo", "msg": "✓ вебхук принят (HTTP 200), оплата записана у нас, доступ выдан"}, {"t": "08:47:14", "lvl": "INFO", "src": "demo", "msg": "✓ Денис сразу получил письмо с доступом, CRM для этого не нужна"}, {"t": "08:47:14", "lvl": "INFO", "src": "demo", "msg": "✓ два шага CRM отложены в очередь, ничего не потеряно"}, {"t": "08:47:14", "lvl": "INFO", "src": "sim", "msg": "CRM снова отвечает"}, {"t": "08:47:14", "lvl": "INFO", "src": "demo", "msg": "запускается сверка (в рабочей системе её запускает планировщик, например cron)"}, {"t": "08:47:14", "lvl": "INFO", "src": "pay", "msg": "GET /v1/invoices/inv_0003 → 200: статус pending"}, {"t": "08:47:14", "lvl": "INFO", "src": "pay", "msg": "GET /v1/invoices/inv_0005 → 200: статус pending"}, {"t": "08:47:14", "lvl": "INFO", "src": "crm", "msg": "PATCH /api/deals/106 → 200: стадия AWAITING_PAYMENT → PAID"}, {"t": "08:47:14", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals/106/comments → 201: «Оплата получена: 5 900 ₽, платёж pay_0006, чек № R-000006.»"}, {"t": "08:47:14", "lvl": "INFO", "src": "svc", "msg": "заказ ORD-0006: шаг crm_paid выполнен после сбоев (неудачных проходов было: 1)"}, {"t": "08:47:14", "lvl": "INFO", "src": "crm", "msg": "PATCH /api/deals/106 → 200: стадия PAID → ACCESS_GRANTED"}, {"t": "08:47:14", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals/106/comments → 201: «Доступ открыт.»"}, {"t": "08:47:14", "lvl": "INFO", "src": "demo", "msg": "✓ сверка догнала CRM: сделка в стадии «Доступ выдан»"}, {"t": "08:47:14", "lvl": "INFO", "src": "demo", "msg": "✓ записи в истории сделки идут в правильном порядке"}, {"t": "08:47:14", "lvl": "INFO", "src": "demo", "msg": "✓ повторных писем клиенту нет"}]}, {"n": 7, "title": "Сервис перезапускается, провайдер повторяет доставку", "steps": [{"t": "08:47:14", "lvl": "INFO", "src": "site", "msg": "клиентка Елена Фролова оформляет «Консультацию 60 минут» (lead-1008)"}, {"t": "08:47:14", "lvl": "INFO", "src": "svc", "msg": "заявка lead-1008 принята: заказ ORD-0007, Консультация 60 минут, 3 500 ₽ (цена из каталога)"}, {"t": "08:47:14", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals external_id=ORD-0007 → 201: создана сделка #107"}, {"t": "08:47:14", "lvl": "INFO", "src": "pay", "msg": "POST /v1/invoices key=ORD-0007 → 201: счёт inv_0007 на 3 500 ₽"}, {"t": "08:47:14", "lvl": "INFO", "src": "crm", "msg": "PATCH /api/deals/107 → 200: стадия NEW → AWAITING_PAYMENT"}, {"t": "08:47:14", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals/107/comments → 201: «Выставлен счёт inv_0007 на 3 500 ₽.»"}, {"t": "08:47:14", "lvl": "INFO", "src": "msg", "msg": "email → elena@example.com: «Заказ ORD-0007: ссылка на оплату»"}, {"t": "08:47:14", "lvl": "INFO", "src": "sim", "msg": "шлюз перед сервисом два раза отвечает 502 (имитация перезапуска)"}, {"t": "08:47:14", "lvl": "INFO", "src": "site", "msg": "клиентка нажимает «Оплатить»"}, {"t": "08:47:14", "lvl": "INFO", "src": "pay", "msg": "платёж pay_0007 по счёту inv_0007 прошёл"}, {"t": "08:47:14", "lvl": "WARNING", "src": "gate", "msg": "POST /webhooks/pay → 502 (имитация: сервис перезапускается)"}, {"t": "08:47:14", "lvl": "WARNING", "src": "pay", "msg": "вебхук evt_0007: попытка 1 → HTTP 502, повтор через 0.3 с"}, {"t": "08:47:14", "lvl": "WARNING", "src": "gate", "msg": "POST /webhooks/pay → 502 (имитация: сервис перезапускается)"}, {"t": "08:47:14", "lvl": "WARNING", "src": "pay", "msg": "вебхук evt_0007: попытка 2 → HTTP 502, повтор через 0.6 с"}, {"t": "08:47:14", "lvl": "INFO", "src": "svc", "msg": "вебхук evt_0007 payment.succeeded: подпись верна, заказ ORD-0007 оплачен (3 500 ₽) → PAID"}, {"t": "08:47:14", "lvl": "INFO", "src": "msg", "msg": "email → elena@example.com: «Заказ ORD-0007: оплата получена»"}, {"t": "08:47:14", "lvl": "INFO", "src": "crm", "msg": "PATCH /api/deals/107 → 200: стадия AWAITING_PAYMENT → PAID"}, {"t": "08:47:14", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals/107/comments → 201: «Оплата получена: 3 500 ₽, платёж pay_0007, чек № R-000007.»"}, {"t": "08:47:14", "lvl": "INFO", "src": "crm", "msg": "PATCH /api/deals/107 → 200: стадия PAID → ACCESS_GRANTED"}, {"t": "08:47:14", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals/107/comments → 201: «Доступ открыт.»"}, {"t": "08:47:14", "lvl": "INFO", "src": "msg", "msg": "telegram → @manager: «Оплачен заказ ORD-0007»"}, {"t": "08:47:14", "lvl": "INFO", "src": "pay", "msg": "вебхук evt_0007 доставлен с попытки 3 (HTTP 200)"}, {"t": "08:47:14", "lvl": "INFO", "src": "demo", "msg": "✓ провайдер получил 502, 502 и повторил доставку до ответа 200"}, {"t": "08:47:14", "lvl": "INFO", "src": "demo", "msg": "✓ заказ обработан ровно один раз"}, {"t": "08:47:14", "lvl": "INFO", "src": "demo", "msg": "✓ клиентка получила по одному письму каждого вида"}]}, {"n": 8, "title": "Вебхук потерялся совсем: сверка спрашивает провайдера", "steps": [{"t": "08:47:14", "lvl": "INFO", "src": "site", "msg": "клиент Фёдор Никитин оформляет «Аудит рабочих процессов» (lead-1009)"}, {"t": "08:47:14", "lvl": "INFO", "src": "svc", "msg": "заявка lead-1009 принята: заказ ORD-0008, Аудит рабочих процессов, 12 000 ₽ (цена из каталога)"}, {"t": "08:47:14", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals external_id=ORD-0008 → 201: создана сделка #108"}, {"t": "08:47:14", "lvl": "INFO", "src": "pay", "msg": "POST /v1/invoices key=ORD-0008 → 201: счёт inv_0008 на 12 000 ₽"}, {"t": "08:47:15", "lvl": "INFO", "src": "crm", "msg": "PATCH /api/deals/108 → 200: стадия NEW → AWAITING_PAYMENT"}, {"t": "08:47:15", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals/108/comments → 201: «Выставлен счёт inv_0008 на 12 000 ₽.»"}, {"t": "08:47:15", "lvl": "INFO", "src": "msg", "msg": "email → fedor@example.com: «Заказ ORD-0008: ссылка на оплату»"}, {"t": "08:47:15", "lvl": "INFO", "src": "sim", "msg": "Фёдор оплатил, но уведомление до сервиса не дошло ни разу"}, {"t": "08:47:15", "lvl": "INFO", "src": "pay", "msg": "платёж pay_0008 по счёту inv_0008 прошёл"}, {"t": "08:47:15", "lvl": "WARNING", "src": "pay", "msg": "вебхук evt_0008 payment.succeeded не отправлен (имитация потерянного уведомления)"}, {"t": "08:47:15", "lvl": "INFO", "src": "demo", "msg": "✓ сервис пока не знает об оплате"}, {"t": "08:47:15", "lvl": "INFO", "src": "demo", "msg": "запускается сверка"}, {"t": "08:47:15", "lvl": "INFO", "src": "pay", "msg": "GET /v1/invoices/inv_0003 → 200: статус pending"}, {"t": "08:47:15", "lvl": "INFO", "src": "pay", "msg": "GET /v1/invoices/inv_0005 → 200: статус pending"}, {"t": "08:47:15", "lvl": "INFO", "src": "pay", "msg": "GET /v1/invoices/inv_0008 → 200: статус paid"}, {"t": "08:47:15", "lvl": "INFO", "src": "svc", "msg": "сверка, событие poll_inv_0008 payment.succeeded: заказ ORD-0008 оплачен (12 000 ₽) → PAID"}, {"t": "08:47:15", "lvl": "INFO", "src": "msg", "msg": "email → fedor@example.com: «Заказ ORD-0008: оплата получена»"}, {"t": "08:47:15", "lvl": "INFO", "src": "crm", "msg": "PATCH /api/deals/108 → 200: стадия AWAITING_PAYMENT → PAID"}, {"t": "08:47:15", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals/108/comments → 201: «Оплата получена: 12 000 ₽, платёж pay_0008, чек № R-000008.»"}, {"t": "08:47:15", "lvl": "INFO", "src": "crm", "msg": "PATCH /api/deals/108 → 200: стадия PAID → ACCESS_GRANTED"}, {"t": "08:47:15", "lvl": "INFO", "src": "crm", "msg": "POST /api/deals/108/comments → 201: «Доступ открыт.»"}, {"t": "08:47:15", "lvl": "INFO", "src": "msg", "msg": "telegram → @manager: «Оплачен заказ ORD-0008»"}, {"t": "08:47:15", "lvl": "INFO", "src": "demo", "msg": "✓ сверка по счетам нашла оплату и запустила обычную обработку"}, {"t": "08:47:15", "lvl": "INFO", "src": "demo", "msg": "✓ сделка дошла до «Доступ выдан»"}, {"t": "08:47:15", "lvl": "INFO", "src": "sim", "msg": "спустя время провайдер всё же доставляет потерянное уведомление"}, {"t": "08:47:15", "lvl": "INFO", "src": "svc", "msg": "вебхук evt_0008 payment.succeeded: подпись верна, заказ ORD-0008 уже оплачен этим платежом, событие пропущено"}, {"t": "08:47:15", "lvl": "INFO", "src": "pay", "msg": "вебхук evt_0008 доставлен с попытки 1 (HTTP 200)"}, {"t": "08:47:15", "lvl": "INFO", "src": "demo", "msg": "✓ запоздавшее уведомление распознано как уже учтённая оплата"}, {"t": "08:47:15", "lvl": "INFO", "src": "demo", "msg": "✓ повторных писем и записей нет"}, {"t": "08:47:15", "lvl": "INFO", "src": "demo", "msg": "═══ Итог ═══"}, {"t": "08:47:15", "lvl": "INFO", "src": "demo", "msg": "заказов: 8 (ACCESS_GRANTED: 6, AWAITING_PAYMENT: 1, PAYMENT_FAILED: 1)"}, {"t": "08:47:15", "lvl": "INFO", "src": "demo", "msg": "сделок в CRM: 8 (ACCESS_GRANTED: 6, AWAITING_PAYMENT: 1, PAYMENT_FAILED: 1)"}, {"t": "08:47:15", "lvl": "INFO", "src": "demo", "msg": "события провайдера: failed: 2, ignored:already_paid: 1, ignored:late_failed_after_paid: 1, paid: 6, rejected:amount_mismatch: 1"}, {"t": "08:47:15", "lvl": "INFO", "src": "demo", "msg": "шаги: done: 68"}, {"t": "08:47:15", "lvl": "INFO", "src": "demo", "msg": "сообщений: 23 (клиентам 16, менеджеру 7)"}, {"t": "08:47:15", "lvl": "INFO", "src": "demo", "msg": "✓ очередь шагов пуста, «мёртвых» шагов нет"}, {"t": "08:47:15", "lvl": "INFO", "src": "demo", "msg": "все проверки пройдены: 44"}]}]</script>
+<script>
+const SC=JSON.parse(document.getElementById('data').textContent);
+const LANES=[['site','Клиент и сайт','Сайт'],['svc','Сервис интеграции','Python'],['crm','CRM','Сделки'],['pay','Платёжный сервис','Счета'],['msg','Почта и Telegram','Уведомления']];
+const MAP={site:'site',sim:'site',svc:'svc',gate:'svc',crm:'crm',pay:'pay',msg:'msg'};
+const TAG={site:'сайт',sim:'тест',svc:'сервис',gate:'сервис',crm:'crm',pay:'оплата',msg:'почта',demo:'проверка'};
+const STAGE={NEW:'Новая',AWAITING_PAYMENT:'Ждёт оплаты',PAYMENT_FAILED:'Платёж отклонён',PAID:'Оплачено',ACCESS_GRANTED:'Доступ выдан',CANCELLED:'Отменена',REFUNDED:'Возврат'};
+const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const $=id=>document.getElementById(id);
+$('lanes').innerHTML=LANES.map(l=>`<div class="lane" data-l="${l[0]}"><span>${l[2]}</span><strong>${l[1]}</strong><small></small></div>`).join('');
+$('scs').innerHTML=SC.map((s,i)=>`<button class="sc" type="button" data-i="${i}" aria-pressed="false"><b>Сценарий ${s.n}</b>${esc(s.title)}</button>`).join('');
+let cur=0,pos=0,timer=null;
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function render(){
+  const s=SC[cur],steps=s.steps.slice(0,pos);
+  document.querySelectorAll('.sc').forEach(b=>b.setAttribute('aria-pressed',b.dataset.i==cur));
+  $('sct').textContent=`Сценарий ${s.n} · шаг ${pos} из ${s.steps.length}`;
+  $('feed').innerHTML=steps.map((x,i)=>{const chk=x.src==='demo';const cls=[chk?'chk':'',x.lvl==='WARNING'?'warn':'',x.lvl==='ERROR'?'err':'',i===pos-1?'cur':''].join(' ');
+    return `<li class="${cls}"><span class="tag ${chk?'chk':MAP[x.src]==='svc'?'svc':''}">${TAG[x.src]||x.src}</span><span class="m">${esc(x.msg.replace(/^✓\s*/,''))}</span></li>`}).join('');
+  const f=$('feed');f.scrollTop=f.scrollHeight;
+  const last={};steps.forEach(x=>{if(MAP[x.src])last[MAP[x.src]]=x});
+  const active=steps[pos-1]&&MAP[steps[pos-1].src];
+  document.querySelectorAll('.lane').forEach(el=>{const l=el.dataset.l,x=last[l];el.classList.toggle('on',l===active);el.classList.toggle('w',!!(x&&x.lvl!=='INFO'));el.querySelector('small').textContent=x?x.msg.slice(0,70)+(x.msg.length>70?'…':''):'—'});
+  // стадии: собираем по всем сделкам сценария, показываем путь последней
+  const deals={};let lastDeal=null;
+  steps.forEach(x=>{const m=x.msg.match(/deals\/(\d+) → \d+: стадия (\w+) → (\w+)/);if(m){(deals[m[1]]=deals[m[1]]||[m[2]]).push(m[3]);lastDeal=m[1]}
+    const c=x.msg.match(/создана сделка #(\d+)/);if(c){deals[c[1]]=deals[c[1]]||['NEW'];lastDeal=c[1]}});
+  $('stages').innerHTML=lastDeal?`<span class="note" style="width:100%">Сделка #${lastDeal}</span>`+deals[lastDeal].map(k=>`<span class="st ${k==='PAYMENT_FAILED'?'fail':'done'}">${STAGE[k]||k}</span>`).join('<span class="note">→</span>'):'<span class="note">Сделка ещё не создана</span>';
+  const ch=steps.filter(x=>x.src==='demo'&&x.msg.startsWith('✓'));const total=s.steps.filter(x=>x.src==='demo'&&x.msg.startsWith('✓')).length;
+  $('checks').innerHTML=ch.length?ch.map(x=>`<li>${esc(x.msg.replace(/^✓\s*/,''))}</li>`).join(''):'<li class="empty">Проверки появятся по ходу сценария</li>';
+  $('cnt').textContent=`${ch.length} из ${total}`;
+  $('play').textContent=timer?'❚❚ Пауза':(pos>=s.steps.length?'↺ Сначала':'▶ Проиграть');
+}
+function stop(){clearInterval(timer);timer=null}
+function select(i){stop();cur=i;pos=0;render();play()}
+function play(){if(timer){stop();render();return}if(pos>=SC[cur].steps.length)pos=0;
+  if(reduce){pos=SC[cur].steps.length;render();return}
+  timer=setInterval(()=>{pos++;if(pos>=SC[cur].steps.length){pos=SC[cur].steps.length;stop()}render()},650);render()}
+$('scs').addEventListener('click',e=>{const b=e.target.closest('.sc');if(b)select(+b.dataset.i)});
+$('play').onclick=play;
+$('step').onclick=()=>{stop();if(pos<SC[cur].steps.length)pos++;render()};
+$('all').onclick=()=>{stop();pos=SC[cur].steps.length;render()};
+pos=SC[0].steps.length;render();
+</script>
+</body>
+</html>
