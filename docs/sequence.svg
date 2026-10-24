@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1580 1594" width="1580" height="1594" font-family='"Segoe UI","DejaVu Sans",Arial,sans-serif'>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1f2a33"/></marker></defs>
+<rect width="1580" height="1594" fill="#fff"/>
+<rect width="1580" height="34" fill="#fff3d6"/>
+<text x="790" y="22" font-size="13" font-weight="600" fill="#7a4b00" text-anchor="middle">ТЕСТОВЫЙ СТЕНД: схема работы тестового стенда. CRM, платёжный сервис, почта и сайт вымышленные, деньги и письма настоящими не бывают</text>
+<text x="48" y="68" font-size="24" font-weight="700" fill="#1f2a33" text-anchor="start">Заявка, оплата и доступ: как обмениваются системы</text>
+<text x="48" y="92" font-size="13" font-weight="400" fill="#5d6a76" text-anchor="start">Сервис интеграции связывает сайт, CRM и платёжный сервис. Сплошная стрелка: запрос, пунктирная: ответ. Схема построена по коду проекта и его тестовому прогону.</text>
+<line x1="255" y1="172" x2="255" y2="1304" stroke="#c9d1d8" stroke-width="1.5" stroke-dasharray="5 5"/>
+<rect x="127" y="118" width="256" height="54" rx="9" fill="#f1f4f6" stroke="#c9d1d8"/>
+<text x="255" y="142" font-size="15" font-weight="700" fill="#1f2a33" text-anchor="middle">Клиент и сайт</text>
+<text x="255" y="161" font-size="11.5" font-weight="400" fill="#5d6a76" text-anchor="middle">форма заказа</text>
+<line x1="547" y1="172" x2="547" y2="1304" stroke="#c9d1d8" stroke-width="1.5" stroke-dasharray="5 5"/>
+<rect x="419" y="118" width="256" height="54" rx="9" fill="#f1f4f6" stroke="#c9d1d8"/>
+<text x="547" y="142" font-size="15" font-weight="700" fill="#1f2a33" text-anchor="middle">Платёжный сервис</text>
+<text x="547" y="161" font-size="11.5" font-weight="400" fill="#5d6a76" text-anchor="middle">учебный, не настоящий</text>
+<line x1="839" y1="172" x2="839" y2="1304" stroke="#2b6f8e" stroke-width="2.5" stroke-dasharray=""/>
+<rect x="711" y="118" width="256" height="54" rx="9" fill="#2b6f8e" stroke="#2b6f8e"/>
+<text x="839" y="142" font-size="15" font-weight="700" fill="#fff" text-anchor="middle">Сервис интеграции</text>
+<text x="839" y="161" font-size="11.5" font-weight="400" fill="#dbe9f0" text-anchor="middle">его пишет исполнитель</text>
+<line x1="1131" y1="172" x2="1131" y2="1304" stroke="#c9d1d8" stroke-width="1.5" stroke-dasharray="5 5"/>
+<rect x="1003" y="118" width="256" height="54" rx="9" fill="#f1f4f6" stroke="#c9d1d8"/>
+<text x="1131" y="142" font-size="15" font-weight="700" fill="#1f2a33" text-anchor="middle">CRM</text>
+<text x="1131" y="161" font-size="11.5" font-weight="400" fill="#5d6a76" text-anchor="middle">учебная, не настоящая</text>
+<line x1="1423" y1="172" x2="1423" y2="1304" stroke="#c9d1d8" stroke-width="1.5" stroke-dasharray="5 5"/>
+<rect x="1295" y="118" width="256" height="54" rx="9" fill="#f1f4f6" stroke="#c9d1d8"/>
+<text x="1423" y="142" font-size="15" font-weight="700" fill="#1f2a33" text-anchor="middle">Почта и Telegram</text>
+<text x="1423" y="161" font-size="11.5" font-weight="400" fill="#5d6a76" text-anchor="middle">учебные, письма не уходят</text>
+<rect x="24" y="188" width="1532" height="30" rx="6" fill="#eef3f6"/>
+<text x="40" y="208" font-size="14.5" font-weight="700" fill="#2b6f8e" text-anchor="start">1  Заявка с сайта</text>
+<line x1="260" y1="290" x2="837" y2="290" stroke="#1f2a33" stroke-width="1.6" marker-end="url(#a)"/>
+<text x="547" y="269" font-size="13.5" font-weight="600" fill="#1f2a33" text-anchor="middle" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke">POST /leads</text>
+<text x="547" y="284" font-size="12" font-weight="400" fill="#5d6a76" text-anchor="middle" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke">идентификатор заявки, имя, почта, продукт</text>
+<rect x="825" y="318" width="450" height="50" rx="7" fill="#e8f1f6" stroke="#2b6f8e" stroke-width="1.2"/>
+<text x="837" y="337" font-size="13.5" font-weight="700" fill="#1f2a33" text-anchor="start">Заказ записан в базу</text>
+<text x="837" y="355" font-size="12" font-weight="400" fill="#5d6a76" text-anchor="start">цена из каталога на сервере; повтор заявки вернёт тот же заказ</text>
+<line x1="844" y1="428" x2="1129" y2="428" stroke="#1f2a33" stroke-width="1.6" marker-end="url(#a)"/>
+<text x="985" y="407" font-size="13.5" font-weight="600" fill="#1f2a33" text-anchor="middle" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke">Создать сделку</text>
+<text x="985" y="422" font-size="12" font-weight="400" fill="#5d6a76" text-anchor="middle" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke">ключ: номер заказа, дубль не создаётся</text>
+<line x1="834" y1="490" x2="549" y2="490" stroke="#1f2a33" stroke-width="1.6" marker-end="url(#a)"/>
+<text x="693" y="469" font-size="13.5" font-weight="600" fill="#1f2a33" text-anchor="middle" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke">Создать счёт</text>
+<text x="693" y="484" font-size="12" font-weight="400" fill="#5d6a76" text-anchor="middle" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke">Idempotence-Key = номер заказа</text>
+<line x1="552" y1="552" x2="837" y2="552" stroke="#1f2a33" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#a)"/>
+<text x="693" y="544" font-size="13.5" font-weight="600" fill="#1f2a33" text-anchor="middle" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke">Ссылка на оплату</text>
+<line x1="844" y1="614" x2="1129" y2="614" stroke="#1f2a33" stroke-width="1.6" marker-end="url(#a)"/>
+<text x="985" y="593" font-size="13.5" font-weight="600" fill="#1f2a33" text-anchor="middle" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke">Стадия «Ждёт оплаты»</text>
+<text x="985" y="608" font-size="12" font-weight="400" fill="#5d6a76" text-anchor="middle" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke">и комментарий в сделке</text>
+<line x1="844" y1="676" x2="1421" y2="676" stroke="#1f2a33" stroke-width="1.6" marker-end="url(#a)"/>
+<text x="1131" y="668" font-size="13.5" font-weight="600" fill="#1f2a33" text-anchor="middle" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke">Письмо со ссылкой на оплату</text>
+<line x1="834" y1="738" x2="257" y2="738" stroke="#1f2a33" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#a)"/>
+<text x="547" y="717" font-size="13.5" font-weight="600" fill="#1f2a33" text-anchor="middle" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke">Ответ сайту: ссылка на оплату</text>
+<text x="547" y="732" font-size="12" font-weight="400" fill="#5d6a76" text-anchor="middle" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke">повторная заявка получит тот же ответ</text>
+<rect x="24" y="766" width="1532" height="30" rx="6" fill="#eef3f6"/>
+<text x="40" y="786" font-size="14.5" font-weight="700" fill="#2b6f8e" text-anchor="start">2  Оплата</text>
+<line x1="260" y1="868" x2="545" y2="868" stroke="#1f2a33" stroke-width="1.6" marker-end="url(#a)"/>
+<text x="401" y="847" font-size="13.5" font-weight="600" fill="#1f2a33" text-anchor="middle" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke">Оплата на странице провайдера</text>
+<text x="401" y="862" font-size="12" font-weight="400" fill="#5d6a76" text-anchor="middle" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke">учебная страница, деньги не списываются</text>
+<line x1="552" y1="930" x2="837" y2="930" stroke="#1f2a33" stroke-width="1.6" marker-end="url(#a)"/>
+<text x="693" y="909" font-size="13.5" font-weight="600" fill="#1f2a33" text-anchor="middle" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke">Вебхук «платёж прошёл»</text>
+<text x="693" y="924" font-size="12" font-weight="400" fill="#5d6a76" text-anchor="middle" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke">подпись HMAC-SHA256 и время отправки</text>
+<rect x="825" y="958" width="440" height="50" rx="7" fill="#e8f1f6" stroke="#2b6f8e" stroke-width="1.2"/>
+<text x="837" y="977" font-size="13.5" font-weight="700" fill="#1f2a33" text-anchor="start">Проверки до любых действий</text>
+<text x="837" y="995" font-size="12" font-weight="400" fill="#5d6a76" text-anchor="start">подпись верна · событие новое · сумма и валюта как в заказе</text>
+<rect x="805" y="1032" width="688" height="214" rx="9" fill="#fbfcfd" stroke="#2b6f8e" stroke-dasharray="6 4" stroke-width="1.2"/><text x="817" y="1050" font-size="12.5" font-weight="700" fill="#2b6f8e" text-anchor="start">Очередь шагов: каждый шаг запоминается и при сбое повторяется</text>
+<line x1="844" y1="1100" x2="1421" y2="1100" stroke="#1f2a33" stroke-width="1.6" marker-end="url(#a)"/>
+<text x="1131" y="1092" font-size="13.5" font-weight="600" fill="#1f2a33" text-anchor="middle" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke">Письмо с чеком и доступом</text>
+<line x1="844" y1="1162" x2="1129" y2="1162" stroke="#1f2a33" stroke-width="1.6" marker-end="url(#a)"/>
+<text x="985" y="1141" font-size="13.5" font-weight="600" fill="#1f2a33" text-anchor="middle" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke">Стадии «Оплачено» и «Доступ выдан»</text>
+<text x="985" y="1156" font-size="12" font-weight="400" fill="#5d6a76" text-anchor="middle" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke">с комментариями и номером чека</text>
+<line x1="844" y1="1224" x2="1421" y2="1224" stroke="#1f2a33" stroke-width="1.6" marker-end="url(#a)"/>
+<text x="1131" y="1216" font-size="13.5" font-weight="600" fill="#1f2a33" text-anchor="middle" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke">Сообщение менеджеру в Telegram</text>
+<line x1="834" y1="1300" x2="549" y2="1300" stroke="#1f2a33" stroke-width="1.6" stroke-dasharray="6 4" marker-end="url(#a)"/>
+<text x="693" y="1292" font-size="13.5" font-weight="600" fill="#1f2a33" text-anchor="middle" stroke="#fff" stroke-width="5" stroke-linejoin="round" paint-order="stroke">Ответ 200: событие принято</text>
+<text x="48" y="1358" font-size="17" font-weight="700" fill="#1f2a33" text-anchor="start">Что происходит при сбоях (каждый случай есть в тестовом прогоне и в тестах)</text>
+<rect x="48" y="1378" width="481" height="82" rx="9" fill="#f6f8f9" stroke="#c9d1d8"/>
+<text x="62" y="1402" font-size="14" font-weight="700" fill="#1f2a33" text-anchor="start">Вебхук пришёл дважды</text>
+<text x="62" y="1422" font-size="12.5" font-weight="400" fill="#5d6a76" text-anchor="start">второй раз ничего не меняется: событие запоминается по</text>
+<text x="62" y="1438" font-size="12.5" font-weight="400" fill="#5d6a76" text-anchor="start">идентификатору</text>
+<rect x="549" y="1378" width="481" height="82" rx="9" fill="#f6f8f9" stroke="#c9d1d8"/>
+<text x="563" y="1402" font-size="14" font-weight="700" fill="#1f2a33" text-anchor="start">Вебхук подделан</text>
+<text x="563" y="1422" font-size="12.5" font-weight="400" fill="#5d6a76" text-anchor="start">нет верной подписи или она старая: ответ 401, заказ не тронут</text>
+<rect x="1051" y="1378" width="481" height="82" rx="9" fill="#f6f8f9" stroke="#c9d1d8"/>
+<text x="1065" y="1402" font-size="14" font-weight="700" fill="#1f2a33" text-anchor="start">Сумма не сходится с заказом</text>
+<text x="1065" y="1422" font-size="12.5" font-weight="400" fill="#5d6a76" text-anchor="start">статус не меняется, менеджеру уходит предупреждение</text>
+<rect x="48" y="1472" width="481" height="82" rx="9" fill="#f6f8f9" stroke="#c9d1d8"/>
+<text x="62" y="1496" font-size="14" font-weight="700" fill="#1f2a33" text-anchor="start">CRM не отвечает</text>
+<text x="62" y="1516" font-size="12.5" font-weight="400" fill="#5d6a76" text-anchor="start">клиент всё равно получает доступ, шаги CRM остаются в очереди,</text>
+<text x="62" y="1532" font-size="12.5" font-weight="400" fill="#5d6a76" text-anchor="start">их дожимает сверка</text>
+<rect x="549" y="1472" width="481" height="82" rx="9" fill="#f6f8f9" stroke="#c9d1d8"/>
+<text x="563" y="1496" font-size="14" font-weight="700" fill="#1f2a33" text-anchor="start">Сервис перезапускается</text>
+<text x="563" y="1516" font-size="12.5" font-weight="400" fill="#5d6a76" text-anchor="start">платёжный сервис повторяет доставку вебхука, заказ обработан</text>
+<text x="563" y="1532" font-size="12.5" font-weight="400" fill="#5d6a76" text-anchor="start">один раз</text>
+<rect x="1051" y="1472" width="481" height="82" rx="9" fill="#f6f8f9" stroke="#c9d1d8"/>
+<text x="1065" y="1496" font-size="14" font-weight="700" fill="#1f2a33" text-anchor="start">Вебхук потерялся совсем</text>
+<text x="1065" y="1516" font-size="12.5" font-weight="400" fill="#5d6a76" text-anchor="start">сверка спрашивает у платёжного сервиса статус счетов и запускает</text>
+<text x="1065" y="1532" font-size="12.5" font-weight="400" fill="#5d6a76" text-anchor="start">обычную обработку</text>
+</svg>
