@@ -1,180 +1,132 @@
-# Заявка → CRM → оплата → доступ: проект на Python
+# Lead → CRM → Payment → Access: a Python project
 
-Сервис интеграции для сайта с оплатой. Принимает заявку, создаёт сделку в CRM и счёт в платёжном сервисе,
-принимает подписанные уведомления об оплате (вебхуки), двигает сделку по стадиям, выдаёт доступ, пишет клиенту
-и менеджеру. Сбой любой из внешних систем не теряет заказ: действие ждёт в очереди и выполняется позже.
+An integration service for a website that takes payments. It accepts a lead, creates a deal in the CRM and an
+invoice with the payment provider, accepts signed payment notifications (webhooks), moves the deal through stages,
+grants access and notifies the customer and the manager. If any external system fails, the order is not lost: the
+action waits in a queue and runs later.
 
-**Проверено на тестовых сервисах.** CRM, платёжный сервис, почта с Telegram и сайт вымышленные, они
-запускаются на вашем компьютере вместе с проектом (`mocks/`). Их API условные и не повторяют API
-конкретной CRM или платёжной системы. Проект не запускался с реальными CRM, платёжным сервисом, почтой и
-Telegram. Деньги и письма на стенде не настоящие.
+**Live demo page:** https://skayman777-svg.github.io/crm-payment/
 
-![Схема обмена](docs/sequence.svg)
+**Tested on mock services.** The CRM, payment provider, email/Telegram and website are fictional; they run on your
+machine together with the project (`mocks/`). Their APIs are generic and don’t copy any specific CRM or payment
+provider. The project has not been run against a real CRM, payment provider, email or Telegram. No real money or
+emails on the test stand.
 
-## Быстрый запуск
+![Message flow](docs/sequence.svg)
+
+## Quick start
 
 ```bash
 pip install -r requirements.txt
 python run.py
 ```
 
-Проверено на Python 3.13 (Flask 3.1, requests 2.34), на других версиях не запускалось.
+Tested on Python 3.13 (Flask 3.1, requests 2.34).
 
-Что произойдёт: поднимутся пять локальных серверов (сайт, CRM, платёжный сервис, почта и Telegram, сервис
-интеграции) и пройдут восемь сценариев. Каждый заканчивается проверками, при первой неудачной код выхода 1.
-Прогон занимает около двух секунд, журнал сохраняется в `out/run.log`.
+What happens: five local servers start (website, CRM, payment provider, email/Telegram, integration service) and
+eight scenarios run. Each ends with checks; on the first failure the exit code is 1. The run takes about two
+seconds, the log is saved to `out/run.log`.
 
-Чтобы поработать руками, запустите `python run.py --serve`: после сценариев стенд остаётся включённым.
-В консоли будут адреса формы заказа и доски сделок CRM. Оформите заказ, нажмите на странице оплаты «Оплатить»
-или «Отклонить платёж» и смотрите, как меняется сделка. Остановка: Ctrl+C.
+To try it by hand, run `python run.py --serve`: after the scenarios the stand stays up. The console shows the
+URLs of the order form and the CRM deal board. Place an order, click “Pay” or “Decline payment” on the payment page
+and watch the deal change. Stop with Ctrl+C.
 
-Тесты (89 проверок, без внешних библиотек кроме Flask и requests): `python -m unittest discover -s tests -t .`
+Tests (89 checks, no external libraries except Flask and requests): `python -m unittest discover -s tests -t .`
 
-## Результат тестового прогона
+## Test run results
 
-| Показатель | Значение |
+| Metric | Value |
 |---|---|
-| Заказов / сделок в CRM | 8 / 8 |
-| Дошли до «Доступ выдан» | 6 |
-| Ждёт оплаты / отказ банка, ждёт повтора | 1 / 1 |
-| События провайдера | оплата принята 6, отказ 2, запоздавший отказ после оплаты пропущен 1, повтор уже учтённой оплаты пропущен 1, сумма не сошлась 1 |
-| Шагов выполнено, в очереди, «мёртвых» | 68, 0, 0 |
-| Сообщений | 23: клиентам 16, менеджеру 7 |
-| Проверок в сценариях | 44 |
+| Orders / CRM deals | 8 / 8 |
+| Reached “Access granted” | 6 |
+| Awaiting payment / declined, awaiting retry | 1 / 1 |
+| Provider events | 6 paid, 2 declined, 1 late decline after payment skipped, 1 repeat of a recorded payment skipped, 1 amount mismatch |
+| Steps done, queued, dead | 68, 0, 0 |
+| Messages | 23: 16 to customers, 7 to the manager |
+| Scenario checks | 44 |
 
-## Сценарии
+## Scenarios
 
-| № | Сценарий | Что проверяется |
+| # | Scenario | What is checked |
 |---|---|---|
-| 1 | Обычная оплата | Заявка, сделка, счёт, оплата, доступ. Сделка доходит до «Доступ выдан», в её истории три записи. Клиент получает два письма, менеджер одно сообщение. |
-| 2 | Двойной клик, чужие данные, подмена цены | Тот же номер заявки возвращает тот же заказ: второй сделки и второго счёта нет. Тот же номер с другим продуктом получает 409. Цена из тела запроса игнорируется. Пустое имя, неверная почта, неизвестный продукт получают 422. |
-| 3 | Повтор вебхука | Провайдер дважды присылает обработанное событие. Ответ «duplicate», в CRM и почте ничего не прибавилось. |
-| 4 | Поддельные вебхуки, сумма не сходится | Без подписи, с чужой подписью, со старой подписью и с подписью от другого тела: отказ 401. Настоящая подпись, но сумма 1 ₽ вместо 3 500 ₽: статус не меняется, в сделку и менеджеру уходит предупреждение. |
-| 5 | Отказ банка, затем успех | Отказ: стадия «Оплата не прошла» и письмо клиенту со ссылкой для повтора. Повторная оплата по той же ссылке проходит. Запоздавший отказ после оплаты игнорируется, оплаченный заказ не откатывается. |
-| 6 | CRM недоступна в момент оплаты | Оплата записана, доступ выдан, письмо ушло сразу. Два шага CRM ждут в очереди. После восстановления CRM сверка их выполняет, порядок записей верный, повторных писем нет. |
-| 7 | Перезапуск сервиса | Шлюз дважды отвечает 502. Провайдер повторяет доставку (502, 502, 200), заказ обработан один раз. |
-| 8 | Вебхук потерялся совсем | Уведомление не дошло. Сверка спрашивает у провайдера статус счетов, находит оплату и запускает обычную обработку. Запоздавшее уведомление потом распознаётся как уже учтённое. |
+| 1 | Happy path | Lead, deal, invoice, payment, access. The deal reaches “Access granted” with three history entries. The customer gets two emails, the manager one message. |
+| 2 | Double click, other data, price tampering | The same lead ID returns the same order: no second deal or invoice. The same ID with another product gets 409. The price from the request body is ignored. Empty name, bad email, unknown product get 422. |
+| 3 | Webhook retry | The provider sends a processed event twice. The reply is “duplicate”, nothing extra in the CRM or email. |
+| 4 | Forged webhooks, amount mismatch | No signature, a foreign signature, an old signature, a signature of a different body: all rejected with 401. Genuine signature but $0.01 instead of $35: status unchanged, a warning goes to the deal and the manager. |
+| 5 | Bank decline, then success | Decline: “Payment failed” stage and an email with a retry link. The retry with the same link succeeds. A late decline after payment is ignored, the paid order is not rolled back. |
+| 6 | CRM down at payment time | Payment recorded, access granted, email sent right away. Two CRM steps wait in the queue. Once the CRM is back, reconciliation runs them in the right order, no duplicate emails. |
+| 7 | Service restart | The gateway returns 502 twice. The provider retries delivery (502, 502, 200), the order is processed once. |
+| 8 | Webhook lost entirely | The notification never arrives. Reconciliation asks the provider for invoice statuses, finds the payment and runs normal processing. The late notification is later recognized as already recorded. |
 
-## Как это устроено
+## How to connect your own systems
 
-**Путь заказа.** Заявка с сайта: заказ записывается в базу, затем четыре шага (сделка в CRM, счёт, стадия
-«Ждёт оплаты», письмо со ссылкой). Вебхук об оплате: проверки, затем пять шагов (доступ, письмо с чеком,
-стадии «Оплачено» и «Доступ выдан», сообщение менеджеру). Полная схема в `docs/sequence.svg`.
+1. **CRM, payment provider and email requests** live in `integration/clients.py`. The methods must return what
+   `service.py` expects:
 
-**Статусы заказа.** `NEW` → `AWAITING_PAYMENT` → `PAYMENT_FAILED` или `PAID` → `ACCESS_GRANTED`. Статус
-меняется только из ожидаемого предыдущего (проверка и запись одним действием), поэтому параллельные запросы
-не затирают друг друга.
-
-**Защита от дублей на каждом уровне.**
-
-| Где | Чем защищено |
-|---|---|
-| Заявка с сайта | `lead_id` даёт один заказ; тот же `lead_id` с другими данными получает 409 |
-| Сделка в CRM | `external_id` равен номеру заказа |
-| Счёт у провайдера | заголовок `Idempotence-Key` равен номеру заказа |
-| Комментарий в сделке | `uid` из номера заказа и названия шага |
-| Вебхук | идентификатор события хранится в таблице `events` |
-| Шаги очереди | уникальная пара «заказ + шаг», выполненный шаг не повторяется |
-
-**Подпись вебхука.** Заголовок `X-Demo-Signature: t=<unix-время>,v1=<HMAC-SHA256(секрет, "<t>.<тело запроса>")>`.
-Подпись проверяется по сырому телу до разбора JSON, сравнение за постоянное время, допустимое расхождение
-времени 300 секунд (защита от повторной отправки перехваченного запроса). Причину отказа провайдеру не
-сообщаем, она только в журнале.
-
-**Очередь шагов.** Каждое действие во внешней системе записано как шаг в таблице `steps` до вызова и
-помечается выполненным после. Запрос к внешней системе делается до трёх раз с удваивающейся паузой, если
-она ответила 429, 500, 502, 503, 504 или не отвечает; остальные ответы 4xx не повторяются. Если система лежит,
-её остальные шаги в этом запуске пропускаются, а шаги других систем выполняются: клиент получает доступ, даже
-если CRM недоступна. Шаги CRM одного заказа идут строго по порядку: пока стадия «Оплачено» не записана, «Доступ
-выдан» её не обгонит.
-
-Шаг, который не удался 8 раз, считается «мёртвым»: в журнале запись об ошибке, а у сверки, в запуске которой это
-случилось, код выхода 1 (удобно привязать к уведомлению планировщика). Мёртвый шаг сам больше не запускается и
-виден в таблице `steps` (`status = 'dead'`), а следующие шаги CRM этого заказа ждут его. Когда причина устранена,
-шаги возвращают в очередь вручную: `UPDATE steps SET status = 'pending', attempts = 0 WHERE status = 'dead'`.
-Отдельной команды для этого нет.
-
-**Сверка** (`python -m integration reconcile`, запускать по расписанию). Спрашивает у провайдера статус счетов,
-по которым долго нет оплаты (вдруг вебхук потерялся), и повторяет отложенные шаги.
-
-**Ответы сервиса.** `POST /leads`: 201 или 200 со ссылкой на оплату, 202 если счёт ещё не выставлен (ссылку
-пришлём на почту), 400, 401, 409, 413, 422. `POST /webhooks/pay`: 200 (принято, повтор или пропущено), 400, 401, 413
-и 503 с `Retry-After`, если счёт по заказу ещё не записан. Тело запроса больше 64 КБ отклоняется сразу.
-`GET /health`: только `{"status": "ok"}`.
-
-## Как подключить свои системы
-
-1. **Запросы к CRM, платёжному сервису и почте** правятся в `integration/clients.py`. Методы должны вернуть то,
-   что ждёт `service.py`:
-
-   | Метод | Что возвращает |
+   | Method | Returns |
    |---|---|
-   | `CRM.create_deal` | `{"id": ...}`, повтор с тем же `external_id` возвращает ту же сделку |
+   | `CRM.create_deal` | `{"id": ...}`; a retry with the same `external_id` returns the same deal |
    | `CRM.get_deal` | `{"stage": ...}` |
-   | `CRM.set_stage` | любой ответ 2xx; при недопустимом переходе ответ 409 |
-   | `CRM.comment` | любой ответ 2xx; `uid` защищает от повторной записи |
+   | `CRM.set_stage` | any 2xx; 409 on a forbidden transition |
+   | `CRM.comment` | any 2xx; `uid` protects against duplicate entries |
    | `Pay.create_invoice` | `{"id": ..., "pay_url": ...}` |
    | `Pay.get_invoice` | `{"id", "status", "amount_kop", "currency", "payment": {"id", "receipt": {"number"}}}` |
-   | `Notifier.send` | любой ответ 2xx |
+   | `Notifier.send` | any 2xx |
 
-   Названия стадий (`NEW`, `AWAITING_PAYMENT`, `PAYMENT_FAILED`, `PAID`, `ACCESS_GRANTED`) сопоставляются со
-   стадиями вашей воронки внутри `CRM.set_stage` и `CRM.get_deal`.
-2. **Формат вебхука и подпись** у каждого провайдера свои. Подпись в `integration/signature.py`, разбор события
-   в `Service.handle_webhook`, правила по статусам в `Service._decide`. Если провайдер события не подписывает,
-   доверять событию можно только после запроса статуса платежа в его API: метод `Pay.get_invoice` для этого
-   уже есть (его использует сверка).
-3. **Порядок действий** задан списками `LEAD_PLAN` и `PAID_PLAN` в `integration/service.py`. Новый шаг это
-   функция `_s_...` и строка в плане. Шаг должен быть безопасным для повтора.
-4. **Каталог и цены** в `CATALOG` в `integration/config.py`. В работе его заменяют выгрузкой из вашей базы или CRM.
-5. **Настройки** только из переменных окружения: `CRM_URL`, `CRM_TOKEN`, `PAY_URL`, `PAY_KEY`,
-   `WEBHOOK_SECRET`, `MSG_URL`, `LEAD_TOKEN`, `ACCESS_SECRET`. Необязательные: `DB_PATH` (по умолчанию
-   `integration.db`), `MANAGER_CHAT`, `ACCESS_BASE`. Без обязательных переменных сервис не стартует.
-6. **Запуск:** `python -m integration serve --host 127.0.0.1 --port 8080` и по расписанию (например, cron раз в
-   5–10 минут) `python -m integration reconcile`.
-7. **Сайт** отправляет заявку на сервер вашего сайта, а тот обращается к сервису с заголовком
-   `Authorization: Bearer <LEAD_TOKEN>`. Токен нельзя класть в код страницы. Пример серверного обработчика
-   формы: `mocks/site.py`.
+   Stage names (`NEW`, `AWAITING_PAYMENT`, `PAYMENT_FAILED`, `PAID`, `ACCESS_GRANTED`) are mapped to your pipeline
+   stages inside `CRM.set_stage` and `CRM.get_deal`.
+2. **Webhook format and signature** differ per provider. The signature is in `integration/signature.py`, event parsing
+   in `Service.handle_webhook`, status rules in `Service._decide`. If a provider doesn’t sign events, trust an event
+   only after querying the payment status via its API: `Pay.get_invoice` already does that (reconciliation uses it).
+3. **The order of actions** is defined by the `LEAD_PLAN` and `PAID_PLAN` lists in `integration/service.py`. A new step
+   is a `_s_...` function plus a line in the plan. Every step must be safe to retry.
+4. **Catalog and prices** are in `CATALOG` in `integration/config.py`. In production it is replaced by an export from
+   your database or CRM.
+5. **Settings** come only from environment variables: `CRM_URL`, `CRM_TOKEN`, `PAY_URL`, `PAY_KEY`,
+   `WEBHOOK_SECRET`, `MSG_URL`, `LEAD_TOKEN`, `ACCESS_SECRET`. Optional: `DB_PATH` (default `integration.db`),
+   `MANAGER_CHAT`, `ACCESS_BASE`. The service won’t start without the required ones.
+6. **Run:** `python -m integration serve --host 127.0.0.1 --port 8080`, and on a schedule (e.g. cron every
+   5–10 minutes) `python -m integration reconcile`.
+7. **The website** sends the lead to your site’s backend, which calls the service with the header
+   `Authorization: Bearer <LEAD_TOKEN>`. Never put the token in page code. A sample backend form handler:
+   `mocks/site.py`.
 
-## Ограничения
+## Limitations
 
-- Проект проверен только на тестовых сервисах. Каждая реальная CRM и каждый платёжный сервис требуют своего
-  адаптера и проверки: формат запросов, стадии воронки, правила вебхуков, лимиты и тестовый режим.
-- Формат вебхука, заголовок подписи и события условные. У реального провайдера они другие.
-- Чек на стенде условный и нефискальный (`DEMO-000001`). Фискализация по 54-ФЗ настраивается на стороне платёжного
-  сервиса или онлайн-кассы, в проекте её нет.
-- Шаги выполняются внутри обработчика вебхука. Если CRM отвечает медленно, провайдер может не дождаться
-  ответа и повторит доставку (это безопасно, но неудобно). В работе событие сохраняют, сразу отвечают 200, а
-  шаги выполняет фоновый обработчик.
-- SQLite и встроенный сервер Flask подходят для проверки. В работе нужны PostgreSQL, waitress или gunicorn за
-  HTTPS-прокси и блокировка шагов на уровне базы (при нескольких процессах). Блокировки в коде защищают один
-  процесс.
-- Письма и сообщения доставляются «минимум один раз»: если процесс упадёт между отправкой и записью шага, письмо
-  может уйти второй раз.
-- Выдача доступа это заглушка: ссылка считается из номера заказа и секрета. Подключение к вашей платформе
-  (курсы, чат, облако) отдельный шаг.
-- Реальные почта и Telegram не подключались: письма и сообщения уходят в учебный почтовый сервис.
-- Не реализованы: возвраты, подписки и регулярные платежи, заказы из нескольких позиций, промокоды, интерфейс
-  администратора.
-- Сам сервис (строки с тегом `svc`) пишет в журнал номера заказов и заявок, но не имена и адреса почты. В
-  тестовом журнале имена видны, потому что их пишут «рассказчик» сценариев и тестовая почта. Тексты ошибок
-  внешних систем попадают в журнал обрезанными до 120 символов: у реальных систем их стоит проверить на
-  персональные данные.
+- Tested only on mock services. Every real CRM and payment provider needs its own adapter and testing: request
+  format, pipeline stages, webhook rules, rate limits and sandbox mode.
+- The webhook format, signature header and events are generic. A real provider will differ.
+- The receipt on the stand is a non-fiscal placeholder (`DEMO-000001`). Tax receipts are configured on the payment
+  provider side; the project doesn’t include them.
+- Steps run inside the webhook handler. If the CRM is slow, the provider may time out and retry delivery (safe, but
+  not ideal). In production the event is stored, 200 is returned immediately and a background worker runs the steps.
+- SQLite and the built-in Flask server are fine for testing. Production needs PostgreSQL, waitress or gunicorn behind
+  an HTTPS proxy, and database-level step locking (with multiple processes). The in-code locks protect one process.
+- Emails and messages are delivered “at least once”: if the process crashes between sending and recording the step,
+  an email may go out twice.
+- Access granting is a stub: the link is derived from the order number and a secret. Connecting your platform
+  (courses, chat, cloud) is a separate step.
+- Real email and Telegram were not connected: messages go to the mock mail service.
+- Not implemented: refunds, subscriptions and recurring payments, multi-item orders, promo codes, admin UI.
+- The service itself (log lines tagged `svc`) logs order and lead IDs, not names or emails. Names are visible in the
+  test log because the scenario narrator and the mock mail write them. Error texts from external systems are logged
+  truncated to 120 characters; with real systems, check them for personal data.
 
-## Структура
+## Structure
 
 ```
-run.py              сквозной тестовый прогон: 8 сценариев, 44 проверки, журнал в out/run.log
-stand.py             сборка тестового стенда (для run.py и тестов)
-integration/         сервис интеграции
-  config.py            настройки и каталог продуктов
-  signature.py         подпись вебхуков
-  http.py              запросы к внешним системам с повторами
-  clients.py           обёртки над CRM, платёжным сервисом, почтой
-  store.py             SQLite: заказы, события, очередь шагов
-  service.py           вся логика: заявка, вебхук, шаги, сверка
-  web.py               три адреса: /leads, /webhooks/pay, /health
-  __main__.py          python -m integration serve | reconcile
-mocks/               тестовые CRM, платёжный сервис, почта и Telegram, сайт
-docs/                схема обмена (sequence.svg, sequence.png) и скрипт make_diagram.py, который её строит
-tests/               unittest: 89 проверок (подпись, запросы, хранилище, учебные сервисы, сценарии, запуск)
+run.py              end-to-end test run: 8 scenarios, 44 checks, log in out/run.log
+stand.py            test stand assembly (for run.py and tests)
+integration/        the integration service
+  config.py           settings and product catalog
+  signature.py        webhook signatures
+  http.py             requests to external systems with retries
+  clients.py          wrappers over the CRM, payment provider, email
+  store.py            SQLite: orders, events, step queue
+  service.py          all logic: lead, webhook, steps, reconciliation
+  web.py              three endpoints: /leads, /webhooks/pay, /health
+  __main__.py         python -m integration serve | reconcile
+mocks/              mock CRM, payment provider, email/Telegram, website
+docs/               message flow diagram (sequence.svg, sequence.png) and make_diagram.py that builds it
+tests/              unittest: 89 checks (signature, requests, storage, mock services, scenarios, CLI)
 ```
